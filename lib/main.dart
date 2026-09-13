@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 // This address connects an Android emulator to your laptop.
-const backendUrl = 'http://127.0.0.1:8000';
+const backendUrl = 'http://10.0.2.2:8000';
+//const backendUrl = 'http://127.0.0.1:8000';
 
 void main() {
   runApp(const ArtisanApp());
@@ -82,6 +83,14 @@ Future<Map<String, dynamic>> updateProduct({
   }
 
   return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+}
+
+String productPhotoUrl(Map<String, dynamic> product) {
+  final photoPath = product['photo_path'];
+  if (photoPath is! String || photoPath.trim().isEmpty) {
+    return '';
+  }
+  return '$backendUrl$photoPath';
 }
 
 Future<void> uploadProductPhoto({
@@ -359,11 +368,15 @@ class _ProductsPageState extends State<ProductsPage> {
             itemBuilder: (context, index) {
               final product = products[index];
               final price = (product['price_paise'] as num) / 100;
+              final photoUrl = productPhotoUrl(product);
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  trailing: const Icon(Icons.edit),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () async {
                     final saved = await Navigator.push<bool>(
                       context,
@@ -378,17 +391,82 @@ class _ProductsPageState extends State<ProductsPage> {
                       refreshProducts();
                     }
                   },
-                  leading: const Icon(
-                    Icons.shopping_basket,
-                    color: Colors.teal,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: photoUrl.isEmpty
+                              ? Container(
+                                  width: 72,
+                                  height: 72,
+                                  color: Colors.teal.shade50,
+                                  child: const Icon(
+                                    Icons.shopping_basket,
+                                    color: Colors.teal,
+                                    size: 40,
+                                  ),
+                                )
+                              : Image.network(
+                                  photoUrl,
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 72,
+                                      height: 72,
+                                      color: Colors.teal.shade50,
+                                      child: const Icon(
+                                        Icons.shopping_basket,
+                                        color: Colors.teal,
+                                        size: 40,
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product['name'],
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Material: ${product['material']}',
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Price: ₹${price.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Available: ${product['quantity']}',
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.edit, color: Colors.teal),
+                        ),
+                      ],
+                    ),
                   ),
-                  title: Text(product['name']),
-                  subtitle: Text(
-                    'Material: ${product['material']}\n'
-                    'Price: ₹${price.toStringAsFixed(2)}\n'
-                    'Available: ${product['quantity']}',
-                  ),
-                  isThreeLine: true,
                 ),
               );
             },

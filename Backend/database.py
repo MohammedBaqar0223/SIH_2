@@ -6,7 +6,7 @@ UPLOAD_DIRECTORY = Path(__file__).parent / "uploads"
 UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 SEED_PRODUCT = {
-    "name": "Handmade Bamboo Basket",
+    "name": "Handsome Bamboo Basket",
     "material": "Bamboo",
     "price_paise": 35000,
     "quantity": 5,
@@ -114,7 +114,6 @@ def update_product(product_id: int, product: dict) -> dict | None:
         )
         if cursor.rowcount == 0:
             return None
-
         row = connection.execute(
             """
             SELECT id, name, material, price_paise, quantity, photo_path

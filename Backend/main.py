@@ -16,8 +16,6 @@ from database import (
     set_product_photo,
     UPLOAD_DIRECTORY,
 )
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
