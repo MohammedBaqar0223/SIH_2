@@ -11,9 +11,11 @@ from database import (
     init_db,
     insert_product,
     list_products,
+    list_published_products,
     get_product,
     update_product as save_product_update,
     set_product_photo,
+    publish_product,
     UPLOAD_DIRECTORY,
 )
 @asynccontextmanager
@@ -38,6 +40,9 @@ class ProductCreate(BaseModel):
     price_paise: int = Field(ge=0)
     quantity: int = Field(ge=0)
     photo_path: str | None = None
+    description: str = Field(default='')
+    artisan: str = Field(default='Artisan Studio')
+    published: int = Field(default=0)
 
 
 class PricingInput(BaseModel):
@@ -57,9 +62,22 @@ def get_products():
     return list_products()
 
 
+@app.get("/catalog")
+def get_published_products():
+    return list_published_products()
+
+
 @app.get("/products/{product_id}")
 def get_product_by_id(product_id: int):
     product = get_product(product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@app.post("/products/{product_id}/publish", status_code=200)
+def publish_product_route(product_id: int):
+    product = publish_product(product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
