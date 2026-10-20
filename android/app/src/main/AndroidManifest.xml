@@ -3,7 +3,7 @@
 
     <application
         android:usesCleartextTraffic="true"
-        android:label="artesian"
+        android:label="KalaGiri"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

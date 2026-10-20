@@ -1,8 +1,10 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:artesian/screens/artisan/pricing_assistant_page.dart';
 import 'package:artesian/services/product_service.dart';
+import 'package:artesian/theme/app_theme.dart';
+import 'package:artesian/widgets/common.dart';
 
 class AddProductPage extends StatefulWidget {
   final Map<String, dynamic>? product;
@@ -14,7 +16,6 @@ class AddProductPage extends StatefulWidget {
 
 class _AddProductPageState extends State<AddProductPage> {
   final formKey = GlobalKey<FormState>();
-
   final nameController = TextEditingController();
   final materialController = TextEditingController();
   final descriptionController = TextEditingController(text: '');
@@ -27,6 +28,8 @@ class _AddProductPageState extends State<AddProductPage> {
   String? photoPath;
 
   bool saving = false;
+
+  bool get isEditing => widget.product != null;
 
   Future<void> pickPhoto() async {
     final picker = ImagePicker();
@@ -64,6 +67,7 @@ class _AddProductPageState extends State<AddProductPage> {
   }
 
   Future<void> saveProduct() async {
+    FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
 
     setState(() {
@@ -140,182 +144,283 @@ class _AddProductPageState extends State<AddProductPage> {
     super.dispose();
   }
 
+  Widget _photoPicker() {
+    final existingUrl = widget.product == null
+        ? ''
+        : productPhotoUrl(widget.product!);
+
+    Widget content;
+    if (selectedPhotoBytes != null) {
+      content = Image.memory(
+        selectedPhotoBytes!,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+      );
+    } else if (existingUrl.isNotEmpty) {
+      content = ProductImage(url: existingUrl, height: 200);
+    } else {
+      content = Container(
+        height: 200,
+        width: double.infinity,
+        color: AppColors.sand.withValues(alpha: 0.5),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: 44,
+              color: AppColors.terracotta,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Tap to add a photo',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Great photos help your craft sell',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final hasImage = selectedPhotoBytes != null || existingUrl.isNotEmpty;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: saving ? null : pickPhoto,
+        child: Stack(
+          children: [
+            content,
+            if (hasImage)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_rounded, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        'Change photo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !saving,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.product == null ? 'Add product' : 'Edit product'),
+          title: Text(isEditing ? 'Edit product' : 'New product'),
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: FilledButton.icon(
+              onPressed: saving ? null : saveProduct,
+              icon: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.check_rounded),
+              label: Text(
+                saving
+                    ? 'Saving…'
+                    : (isEditing ? 'Save changes' : 'Add product'),
+              ),
+            ),
+          ),
         ),
         body: Form(
           key: formKey,
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
             children: [
-              TextFormField(
-                controller: nameController,
-                enabled: !saving,
-                maxLength: 120,
-                decoration: const InputDecoration(
-                  labelText: 'Product name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Enter a product name';
-                  }
-                  return null;
-                },
+              _photoPicker(),
+              const SizedBox(height: 16),
+              SectionCard(
+                icon: Icons.label_outline_rounded,
+                title: 'Basic details',
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    enabled: !saving,
+                    maxLength: 120,
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Product name',
+                      hintText: 'e.g. Hand-painted clay vase',
+                      prefixIcon: Icon(Icons.shopping_bag_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Enter a product name';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: materialController,
+                    enabled: !saving,
+                    maxLength: 100,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Material',
+                      hintText: 'e.g. Terracotta, Teak wood',
+                      prefixIcon: Icon(Icons.layers_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Enter the material';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: artisanController,
+                    enabled: !saving,
+                    maxLength: 120,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Artisan / studio name',
+                      hintText: 'Artisan Studio',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: descriptionController,
+                    enabled: !saving,
+                    maxLength: 500,
+                    minLines: 3,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Tell buyers the story behind this piece…',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: materialController,
-                enabled: !saving,
-                maxLength: 100,
-                decoration: const InputDecoration(
-                  labelText: 'Material',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Enter the material';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: artisanController,
-                enabled: !saving,
-                maxLength: 120,
-                decoration: const InputDecoration(
-                  labelText: 'Artisan detail',
-                  hintText: 'Artisan Studio',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: descriptionController,
-                enabled: !saving,
-                maxLength: 500,
-                minLines: 2,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
+              SectionCard(
+                icon: Icons.sell_outlined,
+                title: 'Pricing & stock',
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Photo-first product detail',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              selectedPhoto == null
-                                  ? 'No photo selected'
-                                  : selectedPhoto!.name,
-                              overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: TextFormField(
+                          controller: priceController,
+                          enabled: !saving,
+                          textInputAction: TextInputAction.next,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.]'),
                             ),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Price',
+                            prefixText: '$rupee ',
+                            hintText: '450.00',
                           ),
-                          const SizedBox(width: 12),
-                          FilledButton.icon(
-                            onPressed: saving ? null : pickPhoto,
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Choose photo'),
-                          ),
-                        ],
-                      ),
-                      if (selectedPhotoBytes != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(
-                              selectedPhotoBytes!,
-                              height: 120,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text)) {
+                              return 'Enter a valid price';
+                            }
+
+                            final price = double.tryParse(text);
+                            if (price == null ||
+                                !price.isFinite ||
+                                price > 10000000) {
+                              return 'Max ${rupee}1,00,00,000';
+                            }
+                            return null;
+                          },
                         ),
-                      const SizedBox(height: 12),
-                      FilledButton.tonalIcon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const PricingAssistantPage(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.price_change),
-                        label: const Text('Open pricing assistant'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: quantityController,
+                          enabled: !saving,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Quantity',
+                            hintText: '10',
+                            suffixText: 'pcs',
+                          ),
+                          validator: (value) {
+                            final quantity = int.tryParse(value?.trim() ?? '');
+                            if (quantity == null ||
+                                quantity < 0 ||
+                                quantity > 1000000) {
+                              return '0 – 1,000,000';
+                            }
+                            return null;
+                          },
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: priceController,
-                enabled: !saving,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Price in rupees',
-                  hintText: '450 or 450.50',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final text = value?.trim() ?? '';
-                  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(text)) {
-                    return 'Enter a valid price, such as 450.50';
-                  }
-
-                  final price = double.tryParse(text);
-                  if (price == null || !price.isFinite || price > 10000000) {
-                    return 'Enter a price up to ₹1,00,00,000';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: quantityController,
-                enabled: !saving,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Available quantity',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final quantity = int.tryParse(value?.trim() ?? '');
-                  if (quantity == null || quantity < 0 || quantity > 1000000) {
-                    return 'Enter a whole number from 0 to 1000000';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: saving ? null : saveProduct,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(saving ? 'Saving...' : 'Save product'),
-                ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PricingAssistantPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('Not sure? Use the pricing assistant'),
+                  ),
+                ],
               ),
             ],
           ),

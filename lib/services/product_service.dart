@@ -3,22 +3,26 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
-const backendUrl = 'http://10.0.2.2:8000';
+const backendUrl = "https://polyester-pants-rover.ngrok-free.dev";
+// const backendUrl = 'http://10.0.2.2:8000';
+
+/// ngrok free tier serves an HTML warning page unless this header is sent.
+const apiHeaders = {'ngrok-skip-browser-warning': 'true'};
+const jsonHeaders = {...apiHeaders, 'Content-Type': 'application/json'};
 
 Future<List<dynamic>> fetchProducts() async {
   final url = Uri.parse('$backendUrl/products');
-  final response = await http.get(url).timeout(const Duration(seconds: 15));
+  final response = await http.get(url, headers: apiHeaders).timeout(const Duration(seconds: 15));
 
   if (response.statusCode != 200) {
     throw Exception('Backend returned error ${response.statusCode}');
   }
-
   return jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
 }
 
 Future<List<dynamic>> fetchPublishedProducts() async {
   final response = await http
-      .get(Uri.parse('$backendUrl/catalog'))
+      .get(Uri.parse('$backendUrl/catalog'), headers: apiHeaders)
       .timeout(const Duration(seconds: 15));
 
   if (response.statusCode != 200) {
@@ -30,7 +34,7 @@ Future<List<dynamic>> fetchPublishedProducts() async {
 
 Future<Map<String, dynamic>> fetchProductById(int id) async {
   final response = await http
-      .get(Uri.parse('$backendUrl/products/$id'))
+      .get(Uri.parse('$backendUrl/products/$id'), headers: apiHeaders)
       .timeout(const Duration(seconds: 15));
 
   if (response.statusCode != 200) {
@@ -51,7 +55,7 @@ Future<Map<String, dynamic>> createProduct({
   final response = await http
       .post(
         Uri.parse('$backendUrl/products'),
-        headers: {'Content-Type': 'application/json'},
+        headers: jsonHeaders,
         body: jsonEncode({
           'name': name,
           'material': material,
@@ -86,7 +90,7 @@ Future<Map<String, dynamic>> updateProduct({
   final response = await http
       .put(
         Uri.parse('$backendUrl/products/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: jsonHeaders,
         body: jsonEncode({
           'name': name,
           'material': material,
@@ -110,7 +114,10 @@ Future<Map<String, dynamic>> updateProduct({
 
 Future<Map<String, dynamic>> publishProduct(int id) async {
   final response = await http
-      .post(Uri.parse('$backendUrl/products/$id/publish'))
+      .post(
+        Uri.parse('$backendUrl/products/$id/publish'),
+        headers: apiHeaders,
+      )
       .timeout(const Duration(seconds: 15));
 
   if (response.statusCode != 200) {
@@ -141,6 +148,7 @@ Future<void> uploadProductPhoto({
     Uri.parse('$backendUrl/products/$productId/photo'),
   );
 
+  request.headers.addAll(apiHeaders);
   request.files.add(
     http.MultipartFile.fromBytes('file', bytes, filename: photo.name),
   );

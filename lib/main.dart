@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:artesian/screens/artisan/products_page.dart';
+import 'package:artesian/theme/app_theme.dart';
 
 export 'package:artesian/services/product_service.dart';
 export 'package:artesian/screens/artisan/pricing_assistant_page.dart';
@@ -16,7 +17,7 @@ class ArtisanApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Artisan App',
-      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+      theme: AppTheme.light(),
       home: const ProductsPage(),
     );
   }
